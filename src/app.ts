@@ -1,6 +1,8 @@
 import express, { Request, Response, NextFunction } from 'express';
 import authRoutes from './modules/user/authRoutes';
+import productRoutes from './modules/post/postRoutes'
 import dotenv from 'dotenv';
+import session from 'express-session';
 import { Sequelize } from 'sequelize';
 import cookieParser from 'cookie-parser'
 
@@ -31,8 +33,16 @@ sequelize
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(session({
+    secret:'sonakey',
+    resave: false,
+    saveUninitialized: true,
+}))
 
+// user routes
 app.use('/api/auth', authRoutes);
+app.use('/api/product', productRoutes)
+
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
     console.error(err.stack);

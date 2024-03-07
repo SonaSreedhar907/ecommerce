@@ -76,7 +76,7 @@ const signin = async (req: Request, res: Response, next: NextFunction): Promise<
         }
 
         const token = jwt.sign(
-            { id: validUser.id, isAdmin: validUser.username },
+            { id: validUser.id, isAdmin: validUser.isAdmin },
             process.env.JWT_SECRET!
         );
 

@@ -6,6 +6,7 @@ class User extends Model {
     public username!: string;
     public email!: string;
     public password!: string;
+    public isAdmin!: boolean;
 }
 
 User.init({
@@ -27,11 +28,16 @@ User.init({
     password: {
         type: DataTypes.STRING,
         allowNull: false
-    }
-    
+    },
+    isAdmin: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+    },
+  
 }, {
     sequelize,
     tableName: 'user',
+    timestamps: false,
 });
 
 
