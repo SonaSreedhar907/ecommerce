@@ -1,10 +1,16 @@
 import express, { Request, Response, NextFunction } from 'express';
 import authRoutes from './modules/user/authRoutes';
-import productRoutes from './modules/post/postRoutes'
+import productRoutes from './modules/product/productRoutes'
+import cartRoutes from './modules/cart/cartRoutes'
+import displayRoutes from './modules/userdisplayproducts/displayRoutes'
 import dotenv from 'dotenv';
 import session from 'express-session';
 import { Sequelize } from 'sequelize';
 import cookieParser from 'cookie-parser'
+import { Cart, CartProduct } from './modules/cart/cart.model'
+
+
+
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -30,6 +36,11 @@ sequelize
         console.error('Unable to connect to the database:', error);
     });
 
+    sequelize.sync({force: false}).then(()=>{
+        console.log("Database synced successfully.");
+    }).catch((err)=>{
+        console.log("Err",err)
+    })
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -42,6 +53,8 @@ app.use(session({
 // user routes
 app.use('/api/auth', authRoutes);
 app.use('/api/product', productRoutes)
+app.use('/api/cart', cartRoutes)
+app.use('/api/display',displayRoutes)
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

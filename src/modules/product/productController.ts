@@ -1,4 +1,4 @@
-import Post from "./post.model";
+import Product from "./product.model";
 import { Request, Response, NextFunction } from "express";
 import { Op } from "sequelize";
 
@@ -21,7 +21,7 @@ const create = async (
       .status(400)
       .json({ message: "please provide all required fields" });
   }
-  const newPost = new Post({
+  const newPost = new Product({
     ...req.body,
     userId: req.user.id,
   });
@@ -34,6 +34,8 @@ const create = async (
   }
 };
 
+
+// get all the posts
 const getPosts = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -49,7 +51,7 @@ const getPosts = async (
       const skip: number = (parsedPage - 1) * parsedLimit;
   
       // Get total count of posts
-      const total = await Post.count();
+      const total = await Product.count();
       const totalPages = Math.ceil(total / parsedLimit);
   
       // Handle invalid page numbers
@@ -78,7 +80,7 @@ const getPosts = async (
       );
   
       // Fetch posts with pagination
-      const allProducts = await Post.findAll({
+      const allProducts = await Product.findAll({
         where: whereClause,
         order: order,
         offset: skip,
