@@ -50,6 +50,7 @@ app.use(session({
     saveUninitialized: true,
 }))
 
+
 // user routes
 app.use('/api/auth', authRoutes);
 app.use('/api/product', productRoutes)

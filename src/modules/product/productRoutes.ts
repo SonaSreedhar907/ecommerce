@@ -4,7 +4,7 @@ import {create,getPosts} from './productController'
 
 const router = express.Router();
 
-router.post('/create', verifyToken,create)
+router.post('/create',verifyToken,create)
 
 router.get('/getallpost',verifyToken ,getPosts)
 

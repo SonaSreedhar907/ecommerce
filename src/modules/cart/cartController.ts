@@ -53,7 +53,7 @@ const getCartProducts = async (
 
     if (!userCart) {
       // If the cart doesn't exist, return an empty array
-      return res.status(200).json({ products: [] });
+      return res.status(200).json({ products: [], totalPrice: 0 });
     }
 
     // Find all products in the user's cart
@@ -62,23 +62,35 @@ const getCartProducts = async (
       include: [
         {
           model: Product, // Include the Product model to get product details
-          attributes: ["id", "title", "description", "price", "images"], // Specify the attributes you want to retrieve
+          attributes: [
+            "id",
+            "title",
+            "description",
+            "price",
+            "images",
+            "brand",
+          ], // Specify the attributes you want to retrieve
         },
       ],
     });
-    console.log("cart products is", cartProducts);
 
-    // Extract product details from the result
+    // Calculate subtotal for each product and accumulate grand total
+    let grandTotal = 0;
     const products = cartProducts.map((cartProduct) => {
       const productData = cartProduct as any;
+      const subtotal =
+        productData.quantity * parseFloat(productData.Product.price);
+      grandTotal += subtotal;
+
       return {
         id: productData.id,
         quantity: productData.quantity,
+        subtotal: subtotal.toFixed(2), // Format to two decimal places
         ...productData.Product.dataValues,
       };
     });
 
-    res.status(200).json({ products });
+    res.status(200).json({ products, totalPrice: grandTotal.toFixed(2) });
   } catch (error) {
     console.log("Error is ", error);
     throw new Error("Error getting cart products");

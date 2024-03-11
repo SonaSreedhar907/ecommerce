@@ -38,7 +38,7 @@ CartProduct.init(
         type: DataTypes.INTEGER,
         allowNull:false,
         defaultValue: 1,
-      }
+      },
     },{
        sequelize,
        tableName:'cartProduct',
