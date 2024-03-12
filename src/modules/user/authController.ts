@@ -54,7 +54,6 @@ const signup = async (req: Request, res: Response, next: NextFunction): Promise<
 
 const signin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { email, password } = req.body;
-    console.log('body is ',req.body)
     if (!email || !password || email === '' || password === '') {
         res.status(400).json({ error: 'All fields are required' });
         return;
@@ -62,7 +61,6 @@ const signin = async (req: Request, res: Response, next: NextFunction): Promise<
 
     try {
         const validUser = await User.findOne({ where: { email } });
-        console.log('valid user is ',validUser)
         if (!validUser) {
             res.status(404).json({ error: 'User not found' });
             return

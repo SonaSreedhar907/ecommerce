@@ -1,7 +1,7 @@
 // cartRoutes.ts
 import express from 'express';
 import { verifyToken,AuthenticatedRequest } from '../../utils/verifyUser';
-import { addToCart,getCartProducts,deleteCartProduct,changeQuantity } from './cartController';
+import { addToCart,getCartProducts,deleteCartProduct,changeQuantity} from './cartController';
 
 const router = express.Router();
 
