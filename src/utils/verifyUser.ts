@@ -14,10 +14,13 @@ const verifyToken = (req: AuthenticatedRequest, res: Response, next: NextFunctio
     if (err) {
       return res.status(401).json({ message: 'unauthorized' });
     }
-    // console.log('user is ', user);
+    console.log('user is ', user);
     req.user = user;
     next();
   });
 };
 
-export { verifyToken, AuthenticatedRequest };
+
+
+
+export { verifyToken, AuthenticatedRequest};

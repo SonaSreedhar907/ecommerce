@@ -4,6 +4,7 @@ import productRoutes from './modules/product/productRoutes'
 import cartRoutes from './modules/cart/cartRoutes'
 import displayRoutes from './modules/userdisplayproducts/displayRoutes'
 import placeOrderRoutes from './modules/placeorder/placeorderRoutes'
+import adminOderViewRoutes from './modules/adminOrder/viewOrderRouter'
 import dotenv from 'dotenv';
 import session from 'express-session';
 import { Sequelize } from 'sequelize';
@@ -58,6 +59,7 @@ app.use('/api/product', productRoutes)
 app.use('/api/cart', cartRoutes)
 app.use('/api/display',displayRoutes)
 app.use('/api/order',placeOrderRoutes)
+app.use('/api/orderview', adminOderViewRoutes)
 
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

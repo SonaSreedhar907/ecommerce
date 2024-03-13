@@ -1,6 +1,7 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../db';
 import Product from '../product/product.model'
+import User from '../user/user.model';
 
 class Order extends Model {
     public id!: number;
@@ -87,5 +88,9 @@ OrderProducts.init(
 Order.hasMany(OrderProducts,{foreignKey:'orderId',as:'orderProducts'})
 
 OrderProducts.belongsTo(Order,{foreignKey:'orderId'})
+
+Order.belongsTo(User,{foreignKey:'userid',as:'user'})
+
+OrderProducts.belongsTo(Product,{foreignKey:'productId',as:'product'})
 
 export {Order,OrderProducts};
