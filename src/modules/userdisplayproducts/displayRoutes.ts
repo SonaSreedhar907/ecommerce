@@ -4,7 +4,7 @@ import { verifyToken } from '../../utils/verifyUser';
 
 const router = express.Router();
 
-router.get('/products',verifyToken, getAllProducts);
+router.get('/products',getAllProducts);
 
 
 

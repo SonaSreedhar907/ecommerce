@@ -4,8 +4,9 @@ import {postPlaceOrder} from './placeorderController'
 
 const router = express.Router();
 
+router.use(verifyToken);
 
-router.post("/place-order", verifyToken,postPlaceOrder);
+router.post("/place-order",postPlaceOrder);
 
 
 export default router;

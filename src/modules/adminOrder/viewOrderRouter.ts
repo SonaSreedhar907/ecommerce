@@ -4,6 +4,8 @@ import { verifyToken } from '../../utils/verifyUser';
 
 const router = express.Router();
 
-router.get('/orders/:startDate?/:endDate?',verifyToken,orders)
+router.use(verifyToken);
+
+router.get('/orders/:startDate?/:endDate?',orders)
 
 export default router;

@@ -4,8 +4,10 @@ import {create,getPosts} from './productController'
 
 const router = express.Router();
 
-router.post('/create',verifyToken,create)
+router.use(verifyToken);
 
-router.get('/getallpost',verifyToken ,getPosts)
+router.post('/create',create)
+
+router.get('/getallpost',getPosts)
 
 export default router;

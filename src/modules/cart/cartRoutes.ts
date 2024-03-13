@@ -5,12 +5,14 @@ import { addToCart,getCartProducts,deleteCartProduct,changeQuantity} from './car
 
 const router = express.Router();
 
-router.get('/add-to-cart/:id',verifyToken,addToCart);
+router.use(verifyToken);
 
-router.get('/carts',verifyToken,getCartProducts)
+router.get('/add-to-cart/:id',addToCart);
 
-router.get('/delete-cart-product/:id',verifyToken,deleteCartProduct)
+router.get('/carts',getCartProducts)
 
-router.patch('/change-product-quantity/:id/:action', verifyToken, changeQuantity);
+router.get('/delete-cart-product/:id',deleteCartProduct)
+
+router.patch('/change-product-quantity/:id/:action',changeQuantity);
 
 export default router;
