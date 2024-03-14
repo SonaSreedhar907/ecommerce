@@ -58,4 +58,40 @@ Product.init(
   }
 );
 
+
+class productImage extends Model {
+  public id!: number;
+  public productId!: number;
+  public images!: string[];
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
+}
+
+ProductImage.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    productId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    images: {
+        type: DataTypes.ARRAY(DataTypes.STRING),
+        allowNull: false,
+      },
+  },
+  {
+    sequelize,
+    tableName: "productimage",
+    timestamps: true,
+  }
+);
+
+Product.hasMany(ProductImage,{foreignKey:'productId',as:'productimages'})
+
+
 export default Product;

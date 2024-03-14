@@ -10,4 +10,8 @@ router.post('/create',create)
 
 router.get('/getallpost',getPosts)
 
+
+
+
+
 export default router;

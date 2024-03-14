@@ -4,6 +4,9 @@ import { Op, where } from "sequelize";
 const moment = require("moment");
 import User from "../user/user.model";
 import Product from "../product/product.model";
+import {sendMail} from '../../utils/sendMails'
+
+
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -55,7 +58,6 @@ const orders = async (
           },
           {
             model: OrderProducts,
-            as: "orderProducts",
             attributes: ["quantity"],
             include: [
               {
@@ -73,7 +75,6 @@ const orders = async (
             ],
           },
         ],
-        
       });
 
       const formattedOrders = allOrders.map((order) => ({
@@ -91,4 +92,103 @@ const orders = async (
   }
 };
 
-export { orders };
+const approvedOrder = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const orderIdParam = req.params.id; 
+
+    const orderData: any = await Order.findByPk(orderIdParam, { 
+      include: [
+        {
+          model: User,
+          as: "user",
+          attributes: ["email"],
+        },
+        {
+          model: OrderProducts,
+          as: 'orderProducts',
+          attributes: ["quantity", "price"],
+          include: [
+            {
+              model: Product,
+              as: "product",
+              attributes: ["title"]
+            }
+          ]
+        }
+      ],
+    });
+
+    console.log("orderData is", orderData);
+
+    if (!orderData) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+    const userEmail = orderData.user.email;
+    const orderId = orderData.id; 
+    const totalAmount = orderData.totalAmount;
+    const orderDate = orderData.orderDate
+     
+    // deliveryDate
+    const deliveryDate = moment(orderDate).add(3,'days').toDate()
+    
+    // Extract order product details
+    const orderProducts = orderData.orderProducts.map((product: any) => ({
+      quantity: product.quantity,
+      price: product.price,
+      productName: product.product.title,
+      subtotal :product.quantity * product.price
+    }));
+    const subject = "Order Approved";
+
+    // Dynamically generate the HTML markup
+    let html = `
+      <h2>Your order with ID ${orderId} has been approved.</h2>
+      <h3>Order Details:</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Product Name</th>
+            <th>Quantity</th>
+            <th>Price</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    orderProducts.forEach((product: any) => {
+      html += `
+        <tr>
+          <td>${product.productName}</td>
+          <td>${product.quantity}</td>
+          <td>$${product.price}</td>
+          <td>$${product.subtotal}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+        </tbody>
+      </table>
+      <div>
+        <p><strong>Total Amount:</strong> $${totalAmount}</p>
+        <p><strong>Estimated Delivery Date:</strong> ${moment(deliveryDate).format("MMMM Do YYYY")}</p>
+      </div>
+    `;
+
+    // Send the email with dynamically generated HTML content
+    await sendMail(userEmail, subject, '', totalAmount, '', deliveryDate, html);
+
+    return res.status(200).json(orderData);
+  } catch (error) {
+    console.error("Error sending email:", error);
+    // Handle the error, e.g., return an error response
+    return res.status(500).json({ error: "Error sending email" });
+  }
+};
+
+export { orders, approvedOrder };

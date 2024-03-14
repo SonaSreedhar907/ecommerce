@@ -35,7 +35,7 @@ const create = async (
 };
 
 
-// get all the posts
+// get all the products
 const getPosts = async (
     req: AuthenticatedRequest,
     res: Response,
@@ -109,4 +109,6 @@ const getPosts = async (
 
 
 
-  export { create, getPosts };
+
+
+  export { create, getPosts};
