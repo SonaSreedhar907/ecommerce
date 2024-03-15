@@ -1,9 +1,14 @@
-import Product from "./product.model";
+import {Product,ProductImage} from "./product.model";
 import { Request, Response, NextFunction } from "express";
 import { Op } from "sequelize";
 
 interface AuthenticatedRequest extends Request {
   user?: any;
+  
+}
+interface CustomFile {
+  filename: string;
+  originalname: string;
 }
 
 const create = async (
@@ -11,28 +16,45 @@ const create = async (
   res: Response,
   next: NextFunction
 ) => {
-  if (!req.user.isAdmin) {
-    return res
-      .status(403)
-      .json({ message: "you are not allowed to create a post" });
-  }
-  if (!req.body.title || !req.body.description) {
-    return res
-      .status(400)
-      .json({ message: "please provide all required fields" });
-  }
-  const newPost = new Product({
-    ...req.body,
-    userId: req.user.id,
-  });
   try {
-    const savedPost = await newPost.save();
-    res.status(201).json(savedPost);
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: "you are not allowed to create a post" });
+    }
+    if (!req.body.title || !req.body.description) {
+      return res.status(400).json({ message: "please provide all required fields" });
+    }
+
+    // Check if req.files exists and is an array
+    if (!req.files || !Array.isArray(req.files)) {
+      return res.status(400).json({ message: "No files uploaded" });
+    }
+
+     // Create product
+     const newPost = await Product.create({
+      ...req.body,
+      userId: req.user.id,
+    });
+    const images=[]
+    for(const file of req.files){
+      const createdImage = await ProductImage.create({
+        productId : newPost.id,
+        image : file.originalname
+      })
+      images.push(createdImage)
+    }
+    //fetch the newly created post with associated images
+    const updatedPost = await Product.findByPk(newPost.id, { include: [{ model: ProductImage, as: 'images' }] });
+    res.status(201).json({newPost:updatedPost})
   } catch (error) {
     console.error("Error during post creation:", error);
     next(error);
   }
 };
+
+
+
+
+
 
 
 // get all the products
@@ -85,12 +107,14 @@ const getPosts = async (
         order: order,
         offset: skip,
         limit: parsedLimit,
+        include:[{model:ProductImage,as:'images'}]
       });
   
       // Map posts and add dateOfPosting
-      const productsWithDate = allProducts.map((product) => ({
+      const productsWithDate = allProducts.map((product:any) => ({
         ...product.toJSON(),
         dateOfPosting: product.createdAt.toLocaleDateString(),
+        images: product.images.map((image: any) => image.image)
       }));
   
       res.status(200).json({
@@ -110,5 +134,107 @@ const getPosts = async (
 
 
 
+  const deletePost=async(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  )=>{
+    try {
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ message: "You are not allowed to delete a post" });
+      }
+      const postId = req.params.id
+      const postToDelete = await Product.findByPk(postId)
+      if(!postToDelete){
+        return res.status(404).json({message:"Post not found"})
+      }
+      await postToDelete.destroy()
+      res.status(200).json({message:"Post deleted successfully"})
+    } catch (error) {
+      console.log('Error in deletePost ',error)
+      next(error)
+    }
+  }
 
-  export { create, getPosts};
+
+
+
+
+
+  const updatePost = async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      // Check if the user is an admin
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ message: "You are not allowed to update a post" });
+      }
+  
+      const postId = req.params.id;
+
+      // Find the post to update by its ID
+      const postToUpdate = await Product.findByPk(postId);
+      console.log('post to update',postToUpdate)
+      if (!postToUpdate) {
+        return res.status(404).json({ message: "Post not found" });
+      }
+      console.log('after',postToUpdate.title)
+
+      
+      console.log('hiiii',req.body.title)
+      // Update post fields if provided in the request body
+      if (req.body.title) {
+        postToUpdate.title = req.body.title;
+      }
+      if (req.body.description) {
+        postToUpdate.description = req.body.description;
+      }
+      if (req.body.quantity) {
+        postToUpdate.quantity = req.body.quantity;
+      }
+      if (req.body.brand) {
+        postToUpdate.brand = req.body.brand;
+      }
+      if (req.body.category) {
+        postToUpdate.category = req.body.category;
+      }
+  
+      // Save the updated post
+      await postToUpdate.save();
+  
+      // Check if new images are provided
+      if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+        // Destroy existing images associated with the post
+        await ProductImage.destroy({ where: { productId: postId } });
+  
+        // Create and associate new images with the post
+        const newImages = [];
+        for (const file of req.files) {
+          const createdImage = await ProductImage.create({
+            productId: postId,
+            image: file.originalname
+          });
+          newImages.push(createdImage);
+        }
+      }
+  
+      // Fetch the updated post with associated images
+      const updatedPost = await Product.findByPk(postId, {
+        include: [{ model: ProductImage, as: 'images' }]
+      });
+  
+      // Return success response with updated post
+      res.status(200).json({ message: "Post updated successfully", updatedPost });
+    } catch (error) {
+      console.error('Error in updatePost:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      next(error);
+    }
+  };
+  
+
+
+
+  export { create, getPosts,deletePost,updatePost};

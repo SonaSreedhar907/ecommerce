@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import Product from "../product/product.model";
+import {Product} from "../product/product.model";
 import { Cart, CartProduct } from "../cart/cart.model";
 import User from "../user/user.model";
 import { Order, OrderProducts } from "./placeorder.model";
+import {NotificationService} from "../../utils/notification";
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -63,6 +64,11 @@ const postPlaceOrder = async (
           include: [{ model: OrderProducts, as: "orderProducts" }],
         }
       );
+
+      // create a notification for the user 
+      const notificationContent = `Your order with ID ${newOrder.id} has been placed successfully`
+      const notificationLabel = 'Order Placed'
+      await NotificationService.createNotification(notificationContent,userId,notificationLabel,)
 
       await CartProduct.destroy({ where: { userid: userId } });
       const user = await User.findByPk(userId);

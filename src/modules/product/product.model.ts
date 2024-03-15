@@ -3,10 +3,9 @@ import sequelize from "../db";
 
 class Product extends Model {
   public id!: number;
-  public  title!: string;
+  public title!: string;
   public description!: string;
   public quantity!: number;
-  public images!: string[];
   public category!: string;
   public brand!: string;
   public price!: number;
@@ -34,10 +33,6 @@ Product.init(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    images: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
-        allowNull: false,
-      },
     brand: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -47,7 +42,7 @@ Product.init(
       allowNull: false,
     },
     price: {
-      type: DataTypes.NUMBER, // Assuming a decimal type for price
+      type: DataTypes.DECIMAL,
       allowNull: false,
     },
   },
@@ -59,10 +54,10 @@ Product.init(
 );
 
 
-class productImage extends Model {
+class ProductImage extends Model {
   public id!: number;
   public productId!: number;
-  public images!: string[];
+  public image!: string; // Changed to a single string field for image path
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -79,10 +74,10 @@ ProductImage.init(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    images: {
-        type: DataTypes.ARRAY(DataTypes.STRING),
-        allowNull: false,
-      },
+    image: {
+      type: DataTypes.STRING,
+      
+    },
   },
   {
     sequelize,
@@ -91,7 +86,9 @@ ProductImage.init(
   }
 );
 
-Product.hasMany(ProductImage,{foreignKey:'productId',as:'productimages'})
+Product.hasMany(ProductImage, { foreignKey: 'productId', as: 'images' })
+ProductImage.belongsTo(Product, { foreignKey: 'productId', as: 'product' })
+
+export {Product, ProductImage};
 
 
-export default Product;

@@ -1,6 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../db';
-import Product from '../product/product.model'
+import {Product,ProductImage} from '../product/product.model'
 
 
 class Cart extends Model{

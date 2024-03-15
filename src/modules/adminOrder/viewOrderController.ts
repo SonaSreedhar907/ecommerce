@@ -3,7 +3,7 @@ import { Order, OrderProducts } from "../placeorder/placeorder.model";
 import { Op, where } from "sequelize";
 const moment = require("moment");
 import User from "../user/user.model";
-import Product from "../product/product.model";
+import {Product, ProductImage} from "../product/product.model";
 import {sendMail} from '../../utils/sendMails'
 
 
@@ -58,6 +58,7 @@ const orders = async (
           },
           {
             model: OrderProducts,
+            as:"orderProducts",
             attributes: ["quantity"],
             include: [
               {
@@ -66,7 +67,6 @@ const orders = async (
                 attributes: [
                   "title",
                   "description",
-                  "images",
                   "category",
                   "brand",
                   "price",
@@ -92,15 +92,19 @@ const orders = async (
   }
 };
 
+
+
+
+
 const approvedOrder = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const orderIdParam = req.params.id; 
+    const orderIdParam = req.params.id;
 
-    const orderData: any = await Order.findByPk(orderIdParam, { 
+    const orderData: any = await Order.findByPk(orderIdParam, {
       include: [
         {
           model: User,
@@ -109,16 +113,16 @@ const approvedOrder = async (
         },
         {
           model: OrderProducts,
-          as: 'orderProducts',
+          as: "orderProducts",
           attributes: ["quantity", "price"],
           include: [
             {
               model: Product,
               as: "product",
-              attributes: ["title"]
-            }
-          ]
-        }
+              attributes: ["title"],
+            },
+          ],
+        },
       ],
     });
 
@@ -127,20 +131,26 @@ const approvedOrder = async (
     if (!orderData) {
       return res.status(404).json({ error: "Order not found" });
     }
+
+    // Check if the email has already been sent for this order
+    if (orderData.emailSent) {
+      return res.status(400).json({ error: "Email already sent for this order" });
+    }
+
     const userEmail = orderData.user.email;
-    const orderId = orderData.id; 
+    const orderId = orderData.id;
     const totalAmount = orderData.totalAmount;
-    const orderDate = orderData.orderDate
-     
+    const orderDate = orderData.orderDate;
+
     // deliveryDate
-    const deliveryDate = moment(orderDate).add(3,'days').toDate()
-    
+    const deliveryDate = moment(orderDate).add(3, "days").toDate();
+
     // Extract order product details
     const orderProducts = orderData.orderProducts.map((product: any) => ({
       quantity: product.quantity,
       price: product.price,
       productName: product.product.title,
-      subtotal :product.quantity * product.price
+      subtotal: product.quantity * product.price,
     }));
     const subject = "Order Approved";
 
@@ -176,12 +186,17 @@ const approvedOrder = async (
       </table>
       <div>
         <p><strong>Total Amount:</strong> $${totalAmount}</p>
-        <p><strong>Estimated Delivery Date:</strong> ${moment(deliveryDate).format("MMMM Do YYYY")}</p>
+        <p><strong>Estimated Delivery Date:</strong> ${moment(deliveryDate).format(
+          "MMMM Do YYYY"
+        )}</p>
       </div>
     `;
 
     // Send the email with dynamically generated HTML content
-    await sendMail(userEmail, subject, '', totalAmount, '', deliveryDate, html);
+    await sendMail(userEmail, subject, "", totalAmount, "", deliveryDate, html);
+
+    // Update the order to mark the email as sent
+    await orderData.update({ emailSent: true });
 
     return res.status(200).json(orderData);
   } catch (error) {

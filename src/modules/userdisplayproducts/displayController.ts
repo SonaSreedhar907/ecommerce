@@ -1,5 +1,5 @@
 // products display in user side
-import Post from '../product/product.model'
+import {Product,ProductImage} from '../product/product.model'
 import { Request, Response, NextFunction } from "express";
 
 
@@ -11,14 +11,17 @@ const getAllProducts = async(
     next: NextFunction
 )=>{
    try {
-    const allProducts = await Post.findAll()
+    const allProducts = await Product.findAll({include:[{model:ProductImage,as:'images'}]})
     // Map products and add dateOfPosting
-    const productsWithDate = allProducts.map((product) => ({
+
+    const productsWithImages = allProducts.map((product) => ({
         ...product.toJSON(),
         dateOfPosting: product.createdAt.toLocaleDateString(),
+        images: (product as any).images.map((image: any) => image.image), // Extract image paths
       }));
+  
       res.status(200).json({
-        products:productsWithDate
+        products: productsWithImages,
       })
    } catch (error) {
     console.log('Error in getAllProducts ',error)

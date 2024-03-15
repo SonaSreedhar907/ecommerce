@@ -1,6 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../db';
-import Product from '../product/product.model'
+import {Product} from '../product/product.model'
 import User from '../user/user.model';
 
 class Order extends Model {

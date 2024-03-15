@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import { Cart, CartProduct } from "./cart.model";
 import { AuthenticatedRequest } from "../../utils/verifyUser";
-import Product from "../product/product.model";
+import {Product, ProductImage} from "../product/product.model";
 
 const addToCart = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = req.user?.id; // Use optional chaining to avoid runtime errors if `user` is undefined
+  const userId = req.user?.id; 
   const proId = req.params.id;
   try {
     const userCart = await Cart.findOne({ where: { userid: userId } });
@@ -41,61 +41,69 @@ const addToCart = async (
 };
 
 const getCartProducts = async (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
 ) => {
-  const userId = req.user?.id;
+    const userId = req.user?.id;
 
-  try {
-    // Find the user's cart
-    const userCart = await Cart.findOne({ where: { userid: userId } });
+    try {
+        // Find the user's cart
+        const userCart = await Cart.findOne({ where: { userid: userId } });
 
-    if (!userCart) {
-      // If the cart doesn't exist, return an empty array
-      return res.status(200).json({ products: [], totalPrice: 0 });
+        if (!userCart) {
+            // If the cart doesn't exist, return an empty array
+            return res.status(200).json({ products: [], totalPrice: 0 });
+        }
+
+        // Find all products in the user's cart
+        const cartProducts = await CartProduct.findAll({
+            where: { userid: userId },
+            include: [
+                {
+                    model: Product, // Include the Product model to get product details
+                    attributes: [
+                        "id",
+                        "title",
+                        "description",
+                        "price",
+                        "brand",
+                    ],
+                    include: [{
+                        model: ProductImage,
+                        attributes: ["image"],
+                        as: "images", // Ensure this matches the alias defined in the association
+                        limit: 1
+                    }]
+                },
+            ],
+        });
+
+        // Calculate subtotal for each product and accumulate grand total
+        let grandTotal = 0;
+        const products = cartProducts.map((cartProduct) => {
+            const productData = cartProduct.toJSON() as any; // Convert to JSON
+            const subtotal =
+                productData.quantity * parseFloat(productData.Product.price);
+            grandTotal += subtotal;
+
+            return {
+                id: productData.id,
+                quantity: productData.quantity,
+                subtotal: subtotal.toFixed(2), // Format to two decimal places
+                ...productData.Product,
+                images: productData.Product.images // Include images
+            };
+        });
+
+        res.status(200).json({ products, totalPrice: grandTotal.toFixed(2) });
+    } catch (error) {
+        console.log("Error is ", error);
+        throw new Error("Error getting cart products");
     }
-
-    // Find all products in the user's cart
-    const cartProducts = await CartProduct.findAll({
-      where: { userid: userId },
-      include: [
-        {
-          model: Product, // Include the Product model to get product details
-          attributes: [
-            "id",
-            "title",
-            "description",
-            "price",
-            "images",
-            "brand",
-          ], // Specify the attributes you want to retrieve
-        },
-      ],
-    });
-
-    // Calculate subtotal for each product and accumulate grand total
-    let grandTotal = 0;
-    const products = cartProducts.map((cartProduct) => {
-      const productData = cartProduct as any;
-      const subtotal =
-        productData.quantity * parseFloat(productData.Product.price);
-      grandTotal += subtotal;
-
-      return {
-        id: productData.id,
-        quantity: productData.quantity,
-        subtotal: subtotal.toFixed(2), // Format to two decimal places
-        ...productData.Product.dataValues,
-      };
-    });
-
-    res.status(200).json({ products, totalPrice: grandTotal.toFixed(2) });
-  } catch (error) {
-    console.log("Error is ", error);
-    throw new Error("Error getting cart products");
-  }
 };
+
+
 
 const deleteCartProduct = async (
   req: AuthenticatedRequest,
@@ -146,8 +154,9 @@ const changeQuantity = async (
       include: [
         {
           model: Product,
-          attributes: ["id", "title", "description", "price", "images"],
+          attributes: ["id", "title", "description", "price"],
         },
+        
       ],
     });
 
