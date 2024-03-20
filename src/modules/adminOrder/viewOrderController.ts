@@ -3,10 +3,8 @@ import { Order, OrderProducts } from "../placeorder/placeorder.model";
 import { Op, where } from "sequelize";
 const moment = require("moment");
 import User from "../user/user.model";
-import {Product, ProductImage} from "../product/product.model";
-import {sendMail} from '../../utils/sendMails'
-
-
+import { Product, ProductImage } from "../product/product.model";
+import { sendMail } from "../../utils/sendMails";
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -58,7 +56,7 @@ const orders = async (
           },
           {
             model: OrderProducts,
-            as:"orderProducts",
+            as: "orderProducts",
             attributes: ["quantity"],
             include: [
               {
@@ -91,10 +89,6 @@ const orders = async (
     next(error);
   }
 };
-
-
-
-
 
 const approvedOrder = async (
   req: AuthenticatedRequest,
@@ -134,7 +128,9 @@ const approvedOrder = async (
 
     // Check if the email has already been sent for this order
     if (orderData.emailSent) {
-      return res.status(400).json({ error: "Email already sent for this order" });
+      return res
+        .status(400)
+        .json({ error: "Email already sent for this order" });
     }
 
     const userEmail = orderData.user.email;
@@ -186,9 +182,9 @@ const approvedOrder = async (
       </table>
       <div>
         <p><strong>Total Amount:</strong> $${totalAmount}</p>
-        <p><strong>Estimated Delivery Date:</strong> ${moment(deliveryDate).format(
-          "MMMM Do YYYY"
-        )}</p>
+        <p><strong>Estimated Delivery Date:</strong> ${moment(
+          deliveryDate
+        ).format("MMMM Do YYYY")}</p>
       </div>
     `;
 
@@ -206,4 +202,24 @@ const approvedOrder = async (
   }
 };
 
-export { orders, approvedOrder };
+const changeStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const orderId = req.params.id;
+    const order = await Order.findOne({ where: { id: orderId } });
+    if (!order) {
+      return res.status(400).json({ message: "No order found" });
+    }
+    order.status = "Approved";
+    await order.save();
+    return res.status(200).json(order);
+  } catch (error) {
+    console.log("error is ", error);
+    next(error);
+  }
+};
+
+export { orders, approvedOrder, changeStatus };
