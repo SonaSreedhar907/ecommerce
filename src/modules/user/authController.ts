@@ -13,6 +13,7 @@ const signupValidationRules = [
     .withMessage("Password must be at least 6 characters long"),
 ];
 
+// signup
 const signup = async (
   req: Request,
   res: Response,
@@ -60,6 +61,7 @@ const signup = async (
   }
 };
 
+// signin
 const signin = async (
   req: Request,
   res: Response,

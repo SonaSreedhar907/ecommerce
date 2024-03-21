@@ -9,6 +9,7 @@ interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
+// place order
 const postPlaceOrder = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -99,6 +100,7 @@ const postPlaceOrder = async (
   }
 };
 
+// cancel the order
 const cancelOrder = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -122,6 +124,7 @@ const cancelOrder = async (
   }
 };
 
+// edit the order
 const editOrder = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -146,8 +149,7 @@ const editOrder = async (
     }
 
     switch (action) {
- 
-    // add product
+      // add product
       case "add":
         const productToAdd = await Product.findByPk(productId);
         if (!productToAdd) {
@@ -191,7 +193,7 @@ const editOrder = async (
           order: order,
         });
 
-        // remove product
+      // remove product
 
       case "remove":
         const existingProduct = order.orderProducts?.find(
@@ -213,15 +215,12 @@ const editOrder = async (
           0
         );
         await order.save();
-        return res
-          .status(400)
-          .json({
-            message: "Product removed from the order successfullt",
-            order: order,
-          });
+        return res.status(400).json({
+          message: "Product removed from the order successfullt",
+          order: order,
+        });
 
-
-          // increment quantity
+      // increment quantity
       case "increment":
         const existingProductIncrement = order.orderProducts?.find(
           (op: any) => op.productId === productId
@@ -239,13 +238,10 @@ const editOrder = async (
           0
         );
         await order.save();
-        return res
-          .status(200)
-          .json({
-            message: "product quantity incremented successfully",
-            order: order,
-          });
-
+        return res.status(200).json({
+          message: "product quantity incremented successfully",
+          order: order,
+        });
 
       // decrement quantity
       case "decrement":
@@ -277,12 +273,10 @@ const editOrder = async (
           // Save the updated order with the new total amount
           await order.save();
 
-          return res
-            .status(200)
-            .json({
-              message: "Product quantity decremented successfully",
-              order: order,
-            });
+          return res.status(200).json({
+            message: "Product quantity decremented successfully",
+            order: order,
+          });
         } catch (error) {
           console.error("Error updating quantity:", error);
           return res.status(500).json({ message: "Error updating quantity" });
@@ -296,6 +290,5 @@ const editOrder = async (
     next(error);
   }
 };
-
 
 export { postPlaceOrder, cancelOrder, editOrder };

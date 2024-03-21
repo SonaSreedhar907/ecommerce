@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { Order, OrderProducts } from "../placeorder/placeorder.model";
 import { Op, where } from "sequelize";
-const moment = require("moment");
 import User from "../user/user.model";
 import { Product, ProductImage } from "../product/product.model";
 import { sendMail } from "../../utils/sendMails";
+const moment = require("moment");
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -14,6 +14,7 @@ const formatDate = (date: Date): string => {
   return moment(date).format("MMMM Do YYYY, h:mm:ss a");
 };
 
+// all orders display
 const orders = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -90,6 +91,7 @@ const orders = async (
   }
 };
 
+// approve order
 const approvedOrder = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -197,11 +199,11 @@ const approvedOrder = async (
     return res.status(200).json(orderData);
   } catch (error) {
     console.error("Error sending email:", error);
-    // Handle the error, e.g., return an error response
     return res.status(500).json({ error: "Error sending email" });
   }
 };
 
+// change the status 
 const changeStatus = async (
   req: AuthenticatedRequest,
   res: Response,

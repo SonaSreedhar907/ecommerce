@@ -17,7 +17,7 @@ dotenv.config();
 
 // Sequelize connection configuration
 const sequelize = new Sequelize({
-  dialect: "mysql", // e.g., 'mysql', 'postgres', 'sqlite'
+  dialect: "mysql", 
   host: "localhost",
   username: "root",
   password: "root",
@@ -53,7 +53,7 @@ app.use(
   })
 );
 
-// user routes
+// routes
 app.use("/api/auth", authRoutes);
 app.use("/api/product", productRoutes);
 app.use("/api/cart", cartRoutes);

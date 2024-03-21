@@ -20,4 +20,4 @@ const fileFilter = (req: any, file: any, cb: any) => {
 };
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
-export default upload;
+export default upload;

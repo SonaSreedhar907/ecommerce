@@ -53,11 +53,10 @@ Product.init(
   }
 );
 
-
 class ProductImage extends Model {
   public id!: number;
   public productId!: number;
-  public image!: string; // Changed to a single string field for image path
+  public image!: string;
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
 }
@@ -76,7 +75,6 @@ ProductImage.init(
     },
     image: {
       type: DataTypes.STRING,
-      
     },
   },
   {
@@ -86,9 +84,7 @@ ProductImage.init(
   }
 );
 
-Product.hasMany(ProductImage, { foreignKey: 'productId', as: 'images' })
-ProductImage.belongsTo(Product, { foreignKey: 'productId', as: 'product' })
+Product.hasMany(ProductImage, { foreignKey: "productId", as: "images" });
+ProductImage.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
-export {Product, ProductImage};
-
-
+export { Product, ProductImage };

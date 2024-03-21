@@ -1,15 +1,15 @@
-import express from 'express';
-import { orders,approvedOrder,changeStatus } from './viewOrderController';
-import { verifyToken } from '../../utils/verifyUser';
+import express from "express";
+import { orders, approvedOrder, changeStatus } from "./viewOrderController";
+import { verifyToken } from "../../utils/verifyUser";
 
 const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/orders/:startDate?/:endDate?',orders)
+router.route("/orders/:startDate?/:endDate?").get(orders);
 
-router.post('/approvedorder/:id',approvedOrder)
+router.route("/approvedorder/:id").post(approvedOrder);
 
-router.post('/status/:id',changeStatus)
+router.route("/status/:id").post(changeStatus);
 
 export default router;

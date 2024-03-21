@@ -1,18 +1,22 @@
-// // cartRoutes.ts
-import express from 'express';
-import { verifyToken,AuthenticatedRequest } from '../../utils/verifyUser';
-import { addToCart,getCartProducts,deleteCartProduct,changeQuantity} from './cartController';
+import express from "express";
+import { verifyToken, AuthenticatedRequest } from "../../utils/verifyUser";
+import {
+  addToCart,
+  getCartProducts,
+  deleteCartProduct,
+  changeQuantity,
+} from "./cartController";
 
 const router = express.Router();
 
 router.use(verifyToken);
 
-router.get('/add-to-cart/:id',addToCart);
+router.route("/add-to-cart/:id").get(addToCart);
 
-router.get('/carts',getCartProducts)
+router.route("/carts").get(getCartProducts);
 
-router.get('/delete-cart-product/:id',deleteCartProduct)
+router.route("/delete-cart-product/:id").get(deleteCartProduct);
 
-router.patch('/change-product-quantity/:id/:action',changeQuantity);
+router.route("/change-product-quantity/:id/:action").patch(changeQuantity);
 
 export default router;

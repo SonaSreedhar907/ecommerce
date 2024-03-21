@@ -1,13 +1,13 @@
-import { DataTypes, Model } from 'sequelize';
-import sequelize from '../db';
-import User from '../user/user.model';
+import { DataTypes, Model } from "sequelize";
+import sequelize from "../db";
+import User from "../user/user.model";
 
 class Notification extends Model {
   public id!: number;
   public content!: string;
   public userid!: number;
   public label!: string;
-  public checked!: number; // Assuming checked is of type number
+  public checked!: number;
 }
 
 Notification.init(
@@ -36,14 +36,12 @@ Notification.init(
   },
   {
     sequelize,
-    modelName: 'Notification',
-    tableName: 'notifications',
+    modelName: "Notification",
+    tableName: "notifications",
     timestamps: false,
   }
 );
 
-Notification.belongsTo(User,{foreignKey:'userid',as:'user'})
+Notification.belongsTo(User, { foreignKey: "userid", as: "user" });
 
-export default Notification
-
-
+export default Notification;

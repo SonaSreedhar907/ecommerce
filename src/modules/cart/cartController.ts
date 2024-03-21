@@ -1,110 +1,100 @@
 import { Request, Response, NextFunction } from "express";
 import { Cart, CartProduct } from "./cart.model";
 import { AuthenticatedRequest } from "../../utils/verifyUser";
-import {Product, ProductImage} from "../product/product.model";
+import { Product, ProductImage } from "../product/product.model";
 
+//add to cart
 const addToCart = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
-  const userId = req.user?.id; 
-  const proId = req.params.id;
   try {
-    const userCart = await Cart.findOne({ where: { userid: userId } });
-    if (!userCart) {
-      const newCart = Cart.create({ userid: userId });
-      await CartProduct.create({
-        userid: userId,
-        product: proId,
-        quantity: 1,
-      });
-    } else {
-      const proExist = await CartProduct.findOne({
+    const userId = req.user?.id;
+    const proId = req.params.id;
+
+    // Find or create user's cart and cart product concurrently
+    const [userCart, [cartProduct]] = await Promise.all([
+      Cart.findOrCreate({ where: { userid: userId } }),
+      CartProduct.findOrCreate({
         where: { userid: userId, product: proId },
-      });
-      if (proExist) {
-        await proExist.increment("quantity", { by: 1 });
-      } else {
-        await CartProduct.create({
-          userid: userId,
-          product: proId,
-          quantity: 1,
-        });
-      }
+        defaults: { quantity: 0 },
+      }),
+    ]);
+
+    if (cartProduct) {
+      await cartProduct.increment("quantity", { by: 1 });
     }
+
     res.status(200).json({ message: "Product added to cart successfully" });
   } catch (error) {
-    console.log("error is ", error);
-    throw new Error("Error adding to cart");
+    console.error("Error in addToCart:", error);
+    next(error);
   }
 };
 
+// get all the cart products
 const getCartProducts = async (
-    req: AuthenticatedRequest,
-    res: Response,
-    next: NextFunction
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
 ) => {
-    const userId = req.user?.id;
+  const userId = req.user?.id;
 
-    try {
-        // Find the user's cart
-        const userCart = await Cart.findOne({ where: { userid: userId } });
+  try {
+    const userCartPromise = Cart.findOne({ where: { userid: userId } });
 
-        if (!userCart) {
-            // If the cart doesn't exist, return an empty array
-            return res.status(200).json({ products: [], totalPrice: 0 });
-        }
+    const cartProductsPromise = CartProduct.findAll({
+      where: { userid: userId },
+      include: [
+        {
+          model: Product,
+          attributes: ["id", "title", "description", "price", "brand"],
+          include: [
+            {
+              model: ProductImage,
+              attributes: ["image"],
+              as: "images",
+              limit: 1,
+            },
+          ],
+        },
+      ],
+    });
 
-        // Find all products in the user's cart
-        const cartProducts = await CartProduct.findAll({
-            where: { userid: userId },
-            include: [
-                {
-                    model: Product, // Include the Product model to get product details
-                    attributes: [
-                        "id",
-                        "title",
-                        "description",
-                        "price",
-                        "brand",
-                    ],
-                    include: [{
-                        model: ProductImage,
-                        attributes: ["image"],
-                        as: "images", // Ensure this matches the alias defined in the association
-                        limit: 1
-                    }]
-                },
-            ],
-        });
+    const [userCart, cartProducts] = await Promise.all([
+      userCartPromise,
+      cartProductsPromise,
+    ]);
 
-        // Calculate subtotal for each product and accumulate grand total
-        let grandTotal = 0;
-        const products = cartProducts.map((cartProduct) => {
-            const productData = cartProduct.toJSON() as any; // Convert to JSON
-            const subtotal =
-                productData.quantity * parseFloat(productData.Product.price);
-            grandTotal += subtotal;
-
-            return {
-                id: productData.id,
-                quantity: productData.quantity,
-                subtotal: subtotal.toFixed(2), // Format to two decimal places
-                ...productData.Product,
-                images: productData.Product.images // Include images
-            };
-        });
-
-        res.status(200).json({ products, totalPrice: grandTotal.toFixed(2) });
-    } catch (error) {
-        console.log("Error is ", error);
-        throw new Error("Error getting cart products");
+    if (!userCart) {
+      return res.status(200).json({ products: [], totalPrice: 0 });
     }
+
+    let grandTotal = 0;
+    const products = cartProducts.map((cartProduct) => {
+      const productData = cartProduct.toJSON();
+      const subtotal =
+        productData.quantity * parseFloat(productData.Product.price);
+      grandTotal += subtotal;
+
+      return {
+        id: productData.id,
+        quantity: productData.quantity,
+        subtotal: subtotal.toFixed(2),
+        ...productData.Product,
+        images: productData.Product.images,
+      };
+    });
+
+    res.status(200).json({ products, totalPrice: grandTotal.toFixed(2) });
+  } catch (error) {
+    console.error("Error in getCartProducts:", error);
+    next(error);
+  }
 };
 
-
-
+// delete the cart product
 const deleteCartProduct = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -112,7 +102,6 @@ const deleteCartProduct = async (
 ) => {
   const userId = req.user?.id;
   const proId = req.params.id;
-  console.log(userId, proId);
   try {
     if (!userId) {
       return res.status(401).json({ error: "User not authenticated" });
@@ -128,11 +117,12 @@ const deleteCartProduct = async (
     }
     return res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
-    console.log("error is", error);
+    console.log("Error in deleteCartProduct:", error);
     next(error);
   }
 };
 
+// change the quantity
 const changeQuantity = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -142,8 +132,6 @@ const changeQuantity = async (
     const productId = req.params.id;
     const action = req.params.action;
     const userId = req.user?.id;
-    console.log(productId);
-    console.log(action);
     if (!userId || !productId || !action) {
       return res.status(400).json({ error: "Invalid request parameters." });
     }
@@ -151,13 +139,6 @@ const changeQuantity = async (
     // Find the user's cart product
     const cartProduct = await CartProduct.findOne({
       where: { product: productId, userid: userId },
-      include: [
-        {
-          model: Product,
-          attributes: ["id", "title", "description", "price"],
-        },
-        
-      ],
     });
 
     if (!cartProduct) {
@@ -166,10 +147,10 @@ const changeQuantity = async (
 
     // Update the quantity based on the action
     if (action === "increment") {
-      cartProduct.quantity += 1;
+      await cartProduct.increment("quantity", { by: 1 });
     } else if (action === "decrement") {
       if (cartProduct.quantity > 1) {
-        cartProduct.quantity -= 1;
+        await cartProduct.decrement("quantity", { by: 1 });
       } else {
         // Remove the product if quantity is 1
         await cartProduct.destroy();
@@ -181,15 +162,13 @@ const changeQuantity = async (
       return res.status(400).json({ error: "Invalid action." });
     }
 
-    await cartProduct.save();
-
     // Respond with the updated cart product
     res
       .status(200)
       .json({ message: "Quantity updated successfully.", cartProduct });
   } catch (error) {
     console.error("Error updating cart product quantity:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+    next(error);
   }
 };
 

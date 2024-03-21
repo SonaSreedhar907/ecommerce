@@ -1,5 +1,5 @@
-const nodemailer = require('nodemailer')
-const moment = require('moment')
+const nodemailer = require("nodemailer");
+const moment = require("moment");
 
 export const sendMail = async (
   email: string,
@@ -8,7 +8,7 @@ export const sendMail = async (
   totalAmount: number,
   subtotalValues: string,
   deliveryDate: Date,
-  html: string // Corrected type for html parameter
+  html: string 
 ) => {
   try {
     const mailOptions = {
@@ -17,9 +17,9 @@ export const sendMail = async (
       subject: `${subject}`,
       text: `${text}`,
       totalAmount: `${totalAmount}`,
-      subtotal: `${subtotalValues}`, // Add subtotal values
-      deliveryDate: moment(deliveryDate).format("MMMM Do YYYY"), // Format delivery date
-      html: html, // Add your HTML template here
+      subtotal: `${subtotalValues}`, 
+      deliveryDate: moment(deliveryDate).format("MMMM Do YYYY"), 
+      html: html, 
     };
 
     const transporter = nodemailer.createTransport({
@@ -33,7 +33,7 @@ export const sendMail = async (
       },
     });
 
-    await transporter.sendMail(mailOptions); // Await sending the mail
+    await transporter.sendMail(mailOptions); 
     console.log(`Mail has been sent to ${email} by send mail service.`);
   } catch (error) {
     console.error("Error while sending mail:", error);

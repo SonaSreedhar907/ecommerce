@@ -1,48 +1,47 @@
-import { DataTypes, Model } from 'sequelize';
-import sequelize from '../db';
-import {Product} from '../product/product.model'
-import User from '../user/user.model';
+import { DataTypes, Model } from "sequelize";
+import sequelize from "../db";
+import { Product } from "../product/product.model";
+import User from "../user/user.model";
 
 class Order extends Model {
-    public id!: number;
-    public userid!: number;
-    public orderDate!: Date;
-    public totalAmount!: number;
-    public status!: string;
-    public readonly createdAt!: Date;
-    public readonly updatedAt!: Date;
-  }
+  public id!: number;
+  public userid!: number;
+  public orderDate!: Date;
+  public totalAmount!: number;
+  public status!: string;
+  public readonly createdAt!: Date;
+  public readonly updatedAt!: Date;
+}
 
-  Order.init(
-    {
-      id: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        autoIncrement: true,
-        primaryKey: true,
-      },
-      userid: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-      },
-      orderDate: {
-        type: DataTypes.DATE,
-        defaultValue: DataTypes.NOW,
-      },
-      totalAmount: {
-        type: DataTypes.INTEGER.UNSIGNED,
-        allowNull: false,
-      },
-      status:{
-        type: DataTypes.STRING,
-        defaultValue: 'pending'
-      }
+Order.init(
+  {
+    id: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      autoIncrement: true,
+      primaryKey: true,
     },
-    {
-      tableName: "orders",
-      sequelize,
-    }
-  );
-  
+    userid: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+    },
+    orderDate: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    totalAmount: {
+      type: DataTypes.INTEGER.UNSIGNED,
+      allowNull: false,
+    },
+    status: {
+      type: DataTypes.STRING,
+      defaultValue: "pending",
+    },
+  },
+  {
+    tableName: "orders",
+    sequelize,
+  }
+);
 
 class OrderProducts extends Model {
   public id!: number;
@@ -84,13 +83,12 @@ OrderProducts.init(
   }
 );
 
+Order.hasMany(OrderProducts, { foreignKey: "orderId", as: "orderProducts" });
 
-Order.hasMany(OrderProducts,{foreignKey:'orderId',as:'orderProducts'})
+OrderProducts.belongsTo(Order, { foreignKey: "orderId" });
 
-OrderProducts.belongsTo(Order,{foreignKey:'orderId'})
+Order.belongsTo(User, { foreignKey: "userid", as: "user" });
 
-Order.belongsTo(User,{foreignKey:'userid',as:'user'})
+OrderProducts.belongsTo(Product, { foreignKey: "productId", as: "product" });
 
-OrderProducts.belongsTo(Product,{foreignKey:'productId',as:'product'})
-
-export {Order,OrderProducts};
+export { Order, OrderProducts };
