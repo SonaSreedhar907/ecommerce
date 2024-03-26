@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import { Order, OrderProducts } from "../placeorder/placeorder.model";
-import { Op, where } from "sequelize";
+import { Op } from "sequelize";
 import User from "../user/user.model";
 import { Product, ProductImage } from "../product/product.model";
 import { sendMail } from "../../utils/sendMails";
+import { sendSocket } from "../../socket";
 const moment = require("moment");
 
 interface AuthenticatedRequest extends Request {
@@ -203,7 +204,7 @@ const approvedOrder = async (
   }
 };
 
-// change the status 
+// change the status
 const changeStatus = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -224,4 +225,37 @@ const changeStatus = async (
   }
 };
 
-export { orders, approvedOrder, changeStatus };
+// Notify
+const notify = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (req.user.isAdmin) {
+      const orderId = req.params.id;
+
+      let order = await Order.findByPk(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Update the order status to "approved"
+      order.status = "approved";
+      await order.save();
+
+      sendSocket({ data: `orderapproved${order.id}` });
+
+      return res.status(200).json({ message: "Order approved successfully" });
+    } else {
+      return res
+        .status(403)
+        .json({ message: "You are not allowed to approve orders" });
+    }
+  } catch (error) {
+    console.log("Error:", error);
+    next(error);
+  }
+};
+
+export { orders, approvedOrder, changeStatus, notify };
