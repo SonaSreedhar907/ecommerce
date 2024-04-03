@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { Order, OrderProducts } from "../placeorder/placeorder.model";
+import { Order, OrderProducts, OrderStatus} from "../placeorder/placeorder.model";
 import { Op } from "sequelize";
 import User from "../user/user.model";
 import { Product, ProductImage } from "../product/product.model";
@@ -16,6 +16,7 @@ const formatDate = (date: Date): string => {
 };
 
 // all orders display
+
 const orders = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -24,7 +25,7 @@ const orders = async (
   try {
     if (req.user.isAdmin) {
       const { startDate, endDate } = req.query;
-
+      console.log(startDate)
       let whereCondition: any = {};
 
       if (startDate) {
@@ -81,16 +82,17 @@ const orders = async (
         ...order.toJSON(),
         orderDate: formatDate(order.orderDate),
       }));
-
-      res.status(200).json(formattedOrders);
+    console.log('formatted orders is ',formattedOrders)
+    res.status(200).json(formattedOrders);
     } else {
-      res.status(403).json({ message: "You are not allowed to create a post" });
+      res.status(403).json({ message: "You are not going to get all the orders" });
     }
   } catch (error) {
     console.error("Error:", error);
     next(error);
   }
 };
+
 
 // approve order
 const approvedOrder = async (
@@ -123,7 +125,6 @@ const approvedOrder = async (
       ],
     });
 
-    console.log("orderData is", orderData);
 
     if (!orderData) {
       return res.status(404).json({ error: "Order not found" });
@@ -242,7 +243,12 @@ const notify = async (
 
       // Update the order status to "approved"
       order.status = "approved";
+      await OrderStatus.create({
+        orderId: order.id,
+        status: 'approved'
+      });
       await order.save();
+     
 
       sendSocket({ data: `orderapproved${order.id}` });
 
@@ -258,4 +264,116 @@ const notify = async (
   }
 };
 
-export { orders, approvedOrder, changeStatus, notify };
+const updateOrderStatus = async(req: AuthenticatedRequest, res: Response, next: NextFunction)=>{
+  try {
+    if(req.user.isAdmin){
+      const orderId = req.params.orderId;
+      const status = req.params.status;
+      if(!orderId || !status){
+        return res.status(400).json({message:"missing orderId or status"})
+      }
+      const validStatuses = ['pending','approved','shipped','out for delivery','delivered']
+      if(!validStatuses.includes(status)){
+        return res.status(400).json({message:"invalid status"})
+      }
+      let order = await Order.findByPk(orderId)
+      if(!order){
+        return res.status(400).json({message:"order not found"})
+      }
+      order.status = status
+      let place = null
+      if(['shipped','out for delivery','delivered'].includes(status)){
+         place = req.params.place
+         if(!place){
+          return res.status(400).json({message:"missing place"})
+         }
+      }
+      await order.save()
+      await OrderStatus.create({
+        orderId:orderId,
+        status:status,
+        place:place
+      })
+      return res.status(200).json(`order status updated to ${status}`)
+    }else{
+      return res.status(500).json({message:"internal server error"})
+    }
+  } catch (error) {
+   next(error) 
+  }
+}
+
+
+
+
+
+const returnOrders = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (req.user.isAdmin) {
+      let startDate: any, endDate: any;
+      if (req.query.startDate) {
+        startDate = moment(req.query.startDate, 'D-M-YYYY');
+      }
+      if (req.query.endDate) {
+        endDate = moment(req.query.endDate, 'D-M-YYYY').endOf('day'); 
+      }
+      
+      const [deliveredOrders,returnedOrders]= await Promise.all([
+              Order.sum('totalAmount',{
+                where:{
+                  status: "delivered"
+                }
+              }),
+              Order.sum('totalAmount',{
+                where:{
+                  status:'return',
+                  returnDate:{
+                    [Op.between]:[startDate,endDate]
+                  }
+                }
+              })
+      ])
+      
+    
+      const netSaleTotal = deliveredOrders - returnedOrders
+
+      const orders = await Order.findAll({
+        where:{
+          status:'return',
+          returnDate:{
+            [Op.between]:[startDate,endDate]
+          }
+        },
+        order:['returnDate']
+      })
+     
+      let groupedOrders :{[key:string]:any[]}={}
+      orders.forEach(order=>{
+        const formattedReturnDate = moment(order.returnDate).format('D-M-YYYY')
+        if(!groupedOrders[formattedReturnDate]){
+          groupedOrders[formattedReturnDate]=[]
+        }
+        groupedOrders[formattedReturnDate].push({
+          id:order.id,
+          userid:order.userid,
+          totalAmount:order.totalAmount,
+          status:order.status,
+          returnDate:formattedReturnDate
+        })
+      })
+      return res.status(200).json({orders:Object.entries(groupedOrders),sum:deliveredOrders,netSaleTotal})
+    } else {
+      return res.status(400).json({ message: "return orders not found" });
+    }
+  } catch (error) {
+    next(error);
+  }
+}
+
+
+
+export { orders, approvedOrder, changeStatus, notify,updateOrderStatus,returnOrders};

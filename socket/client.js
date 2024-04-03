@@ -17,13 +17,11 @@ socket.on("message", (message) => {
   
 });
 socket.on("orderapprovedtouser", (data) => {
-  if(data=`orderapproved+lid`){
-    console.log("order approved successfully");
-  }else{
-    console.log("order not approved successfully")
-  }
+ console.log("Received order approval data :",data)
+ const expectedData = 'orderapproved' + lid;
+ if(data && data.data === expectedData){
+  console.log("order approved successfully")
+ }else{
+  console.log("order not approved successfully")
+ }
 });
-
-
-
-

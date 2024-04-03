@@ -4,6 +4,7 @@ import { Cart, CartProduct } from "../cart/cart.model";
 import User from "../user/user.model";
 import { Order, OrderProducts } from "./placeorder.model";
 import { NotificationService } from "../../utils/notification";
+import moment = require("moment");
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -291,4 +292,78 @@ const editOrder = async (
   }
 };
 
-export { postPlaceOrder, cancelOrder, editOrder };
+//order status change to return 
+const returnStatus=async(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+)=>{
+   try {
+    const userId = req.user?.id
+    const orderId= req.params.id
+    const order = await Order.findOne({
+      where:{
+        userid: userId,
+        id:orderId,
+      },
+    })
+    if(!order){
+      return res.status(400).json({message:"Order not found"})
+    }
+    if(order.status !== 'delivered'){
+      return res.status(400).json({message:"Order status is not delivered"})
+    }
+    order.status = 'return'
+    order.returnDate = moment(order.updatedAt).toDate()
+
+    order.save()
+    return res.status(200).json({message:"Order status changed to return"})
+   } catch (error) {
+    console.log(error)
+    next(error)
+   }
+}
+
+
+
+
+
+
+
+
+// const returnStatus=async(
+//   req: AuthenticatedRequest,
+//   res: Response,
+//   next: NextFunction
+// )=>{
+//    try {
+//     const userId = req.user?.id
+//     const orderId= req.params.id
+//     const order = await Order.findOne({
+//       where:{
+//         userid: userId,
+//         id:orderId,
+//       }
+//     })
+//     if(!order){
+//       return res.status(400).json({message:"Order not found"})
+//     }
+//     if(order.status !== 'delivered'){
+//       return res.status(400).json({message:"Order status is not delivered"})
+//     }
+//     order.status = 'return'
+//     order.returnDate = moment(order.updatedAt).toDate()
+
+//     order.save()
+//     return res.status(200).json({message:"Order status changed to return"})
+//    } catch (error) {
+//     console.log(error)
+//     next(error)
+//    }
+// }
+
+
+
+
+
+export { postPlaceOrder, cancelOrder, editOrder, returnStatus};

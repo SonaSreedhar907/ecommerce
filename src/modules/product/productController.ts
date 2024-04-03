@@ -2,6 +2,8 @@ import { Product, ProductImage } from "./product.model";
 import { Request, Response, NextFunction } from "express";
 import { Op } from "sequelize";
 
+import redis from "../../dbredis";
+
 interface AuthenticatedRequest extends Request {
   user?: any;
 }
@@ -46,6 +48,11 @@ const create = async (
       userId: req.user.id,
     });
 
+    //cache product data in redis
+
+    const productid = newPost.id;
+    await redis.set(`product:${productid}`, JSON.stringify(newPost));
+
     const imagePromises = req.files.map((file) => {
       return ProductImage.create({
         productId: newPost.id,
@@ -58,6 +65,7 @@ const create = async (
     const updatedPost = await Product.findByPk(newPost.id, {
       include: [{ model: ProductImage, as: "images" }],
     });
+
     res.status(201).json({ newPost: updatedPost });
   } catch (error) {
     console.error("Error during post creation:", error);
@@ -66,76 +74,149 @@ const create = async (
 };
 
 // get all the product post
+
+// const getPosts = async (
+//   req: AuthenticatedRequest,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { title, category, brand, color, sort, page, limit } = req.query;
+//     let whereClause: any = {};
+
+//     // Parse page and limit to integers, default to 1 and 10 respectively
+//     const parsedPage = parseInt(page as string, 10) || 1;
+//     const parsedLimit = parseInt(limit as string, 10) || 10;
+//     const skip: number = (parsedPage - 1) * parsedLimit;
+
+//     // Fetch keys matching the pattern "product:*" from Redis
+//     const redisKeys = await redis.keys("product:*");
+
+//     // Fetch values for each key
+//     const redisValues = await Promise.all(
+//       redisKeys.map((key: any) => redis.get(key))
+//     );
+
+//     // Parse values if needed
+//     const products = redisValues.map((value: any) => JSON.parse(value));
+
+//     // Implement sorting logic if needed
+//     // Implement filtering logic if needed
+
+//     // Pagination logic
+//     const total = products.length;
+//     const totalPages = Math.ceil(total / parsedLimit);
+//     const paginatedProducts = products.slice(skip, skip + parsedLimit);
+
+//     // Map products and add dateOfPosting and ensure images property exists
+//     const productsWithDate = paginatedProducts.map((product: any) => ({
+//       ...product,
+//       dateOfPosting: product.createdAt
+//         ? new Date(product.createdAt).toLocaleDateString()
+//         : null,
+//       images: product.images
+//         ? product.images.map((image: any) => image.image)
+//         : [],
+//     }));
+
+//     res.status(200).json({
+//       total,
+//       totalPages,
+//       page: parsedPage,
+//       limit: parsedLimit,
+//       products: productsWithDate,
+//     });
+//   } catch (error) {
+//     console.error("Error in getPosts:", error);
+//     res.status(500).json({ error: "Internal Server Error" });
+//     next(error);
+//   }
+// };
+
+
 const getPosts = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { title, category, brand, color, sort, page, limit } = req.query;
-    let whereClause: any = {};
+    const { title, sort, page, limit } = req.query;
+    let searchItems: string | null = null;
+    if (title) {
+      searchItems = title as string;
+    }
 
     // Parse page and limit to integers, default to 1 and 10 respectively
     const parsedPage = parseInt(page as string, 10) || 1;
     const parsedLimit = parseInt(limit as string, 10) || 10;
     const skip: number = (parsedPage - 1) * parsedLimit;
 
-    // Get total count of posts
-    const total = await Product.count();
-    const totalPages = Math.ceil(total / parsedLimit);
+    // Fetch keys matching the pattern "product:*" from Redis
+    const redisKeys = await redis.keys("product:*");
 
-    // Handle invalid page numbers
-    if (parsedPage < 1 || skip >= total) {
-      return res.status(400).json({ error: "Invalid page number" });
-    }
-
-    // Sorting 
-    let order: [string, "ASC" | "DESC"][] = [];
-    if (sort && typeof sort === "string") {
-      const [sortField, sortOrder] = sort.split(":");
-      if (
-        sortField &&
-        sortOrder &&
-        (sortOrder === "asc" || sortOrder === "desc")
-      ) {
-        order = [[sortField, sortOrder.toUpperCase() as "ASC" | "DESC"]];
-      }
-    }
-
-    // Set up whereClause based on query parameters
-    if (title) whereClause.title = { [Op.substring]: title.toString() };
-    if (category)
-      whereClause.category = { [Op.substring]: category.toString() };
-    if (brand) whereClause.brand = { [Op.substring]: brand.toString() };
-    if (color) whereClause.color = { [Op.substring]: color.toString() };
-
-    // Remove undefined or null values from whereClause
-    whereClause = Object.fromEntries(
-      Object.entries(whereClause).filter(([_, v]) => v != null)
+    // Fetch values for each key
+    const redisValues = await Promise.all(
+      redisKeys.map((key: any) => redis.get(key))
     );
 
-    // Fetch posts with pagination
-    const allProducts = await Product.findAll({
-      where: whereClause,
-      order: order,
-      offset: skip,
-      limit: parsedLimit,
-      include: [{ model: ProductImage, as: "images" }],
-    });
+    // Parse values if needed
+    const products = redisValues.map((value: any) => JSON.parse(value));
 
-    // Map posts and add dateOfPosting
-    const productsWithDate = allProducts.map((product: any) => ({
-      ...product.toJSON(),
-      dateOfPosting: product.createdAt.toLocaleDateString(),
-      images: product.images.map((image: any) => image.image),
-    }));
+    // Filter products based on search term using regex
+    let filteredProducts = [...products];
+
+    if (searchItems) {
+      const regex = new RegExp(searchItems, "i");
+      filteredProducts = products.filter((product: any) =>
+        regex.test(product.title)
+      );
+    }
+
+    // If no products found return a custom message
+    if (filteredProducts.length === 0) {
+      return res
+        .status(404)
+        .json({ message: 'No products found for the given title' });
+    }
+
+    // Pagination logic
+    const total = filteredProducts.length;
+    const totalPages = Math.ceil(total / parsedLimit);
+
+    // Ensure page is within bounds
+    const validPage = Math.max(1, Math.min(parsedPage, totalPages));
+
+    // Calculate slice indices
+    const startIdx = (validPage - 1) * parsedLimit;
+    const endIdx = Math.min(startIdx + parsedLimit, total);
+
+    // Slice products array
+    const paginatedProducts = filteredProducts.slice(startIdx, endIdx);
+
+    // Fetch product images from the database
+    const productImages = await ProductImage.findAll();
+
+    // Map products and add dateOfPosting and include one image from the product image database
+    const productsWithDateAndImage = paginatedProducts.map((product: any) => {
+      const productImage = productImages.find(
+        (image: any) => image.productId === product.id
+      );
+      const image = productImage ? productImage.image : null;
+      return {
+        ...product,
+        dateOfPosting: product.createdAt
+          ? new Date(product.createdAt).toLocaleDateString()
+          : null,
+        image: image,
+      };
+    });
 
     res.status(200).json({
       total,
       totalPages,
-      page: parsedPage,
+      page: validPage,
       limit: parsedLimit,
-      products: productsWithDate,
+      products: productsWithDateAndImage,
     });
   } catch (error) {
     console.error("Error in getPosts:", error);
@@ -143,6 +224,10 @@ const getPosts = async (
     next(error);
   }
 };
+
+
+
+
 
 // delete the product
 const deletePost = async (
@@ -233,4 +318,5 @@ const updatePost = async (
   }
 };
 
-export { create, getPosts, deletePost, updatePost };
+
+export { create, getPosts, deletePost, updatePost};

@@ -7,6 +7,7 @@ import cartRoutes from "./modules/cart/cartRoutes";
 import placeOrderRoutes from "./modules/placeorder/placeorderRoutes";
 import adminOderViewRoutes from "./modules/adminOrder/viewOrderRouter";
 import notificationRoutes from "./modules/notifications/notificationRoutes";
+import orderTrackingRoutes from "./modules/orderTracking/orderTrackingRoutes"
 import dotenv from "dotenv";
 import session from "express-session";
 import { Sequelize } from "sequelize";
@@ -35,7 +36,7 @@ app.use("/api/display", displayRoutes);
 app.use("/api/order", placeOrderRoutes);
 app.use("/api/orderview", adminOderViewRoutes);
 app.use("/api/notification", notificationRoutes);
-
+app.use("/api/track", orderTrackingRoutes)
 
 
 //setting up server connection
