@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.use(verifyToken);
 
-router.route("/orders/:startDate?/:endDate?").get(orders);
+router.route("/orders/:startDate?/:endDate?").get(orders)
 
 router.route("/approvedorder/:id").post(approvedOrder);
 

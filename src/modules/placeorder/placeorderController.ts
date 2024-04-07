@@ -4,19 +4,21 @@ import { Cart, CartProduct } from "../cart/cart.model";
 import User from "../user/user.model";
 import { Order, OrderProducts } from "./placeorder.model";
 import { NotificationService } from "../../utils/notification";
-import moment = require("moment");
+import moment = require("moment-timezone");
 
 interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
-// place order
+
 const postPlaceOrder = async (
   req: AuthenticatedRequest,
   res: Response,
   next: NextFunction
 ) => {
   const userId = req.user?.id;
+  const userTimezone = req.user?.timezone;
+  console.log('user time zone is ',userTimezone)
   try {
     const lastOrder = await Order.findOne({
       where: { userid: userId },
@@ -54,11 +56,16 @@ const postPlaceOrder = async (
           quantity: productData.quantity,
         };
       });
+      const orderDate = new Date()
+     console.log('order date is ',orderDate)
 
+     const formattedOrderDate = moment(orderDate).tz(userTimezone).format('MMMM Do, YYYY, hh:mm:ss A');
+
+     console.log('formatted order date',formattedOrderDate)
       const newOrder = await Order.create(
         {
           userid: userId,
-          orderDate: new Date(),
+          orderDate: orderDate,
           totalAmount: totalAmount.toFixed(2),
           orderProducts: orderProducts,
         },
@@ -80,11 +87,12 @@ const postPlaceOrder = async (
       const user = await User.findByPk(userId);
       const username = user?.username;
       const userEmail = user?.email;
-
+   
       return res.status(200).json({
         message: "Order placed successfully",
         order: {
           ...newOrder.toJSON(),
+          orderDate: formattedOrderDate,
           username: username,
           userEmail: userEmail,
         },
@@ -100,6 +108,7 @@ const postPlaceOrder = async (
     next(error);
   }
 };
+
 
 // cancel the order
 const cancelOrder = async (

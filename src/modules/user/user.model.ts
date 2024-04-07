@@ -5,6 +5,7 @@ class User extends Model {
   public id!: number;
   public username!: string;
   public email!: string;
+  public timezone!: string; 
   public password!: string;
   public isAdmin!: boolean;
 }
@@ -26,6 +27,10 @@ User.init(
       type: DataTypes.STRING,
       allowNull: false,
       unique: true,
+    },
+    timezone: { 
+      type: DataTypes.STRING,
+      allowNull: false,
     },
     password: {
       type: DataTypes.STRING,

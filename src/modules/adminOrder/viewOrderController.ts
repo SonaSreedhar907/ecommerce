@@ -1,11 +1,15 @@
 import { Request, Response, NextFunction } from "express";
-import { Order, OrderProducts, OrderStatus} from "../placeorder/placeorder.model";
+import {
+  Order,
+  OrderProducts,
+  OrderStatus,
+} from "../placeorder/placeorder.model";
 import { Op } from "sequelize";
 import User from "../user/user.model";
 import { Product, ProductImage } from "../product/product.model";
 import { sendMail } from "../../utils/sendMails";
 import { sendSocket } from "../../socket";
-const moment = require("moment");
+const moment = require("moment-timezone");
 
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -16,7 +20,6 @@ const formatDate = (date: Date): string => {
 };
 
 // all orders display
-
 const orders = async (
   req: AuthenticatedRequest,
   res: Response,
@@ -24,8 +27,13 @@ const orders = async (
 ) => {
   try {
     if (req.user.isAdmin) {
+      const adminTimezone = req.user.timezone;
+      console.log("Admin timezone is:", adminTimezone);
+
       const { startDate, endDate } = req.query;
-      console.log(startDate)
+      console.log("Start Date:", startDate);
+      console.log("End Date:", endDate);
+
       let whereCondition: any = {};
 
       if (startDate) {
@@ -33,16 +41,22 @@ const orders = async (
           whereCondition.orderDate = {
             [Op.and]: [
               {
-                [Op.gte]: moment(startDate, "DD-MM-YYYY")
+                [Op.gte]: moment(startDate, "MMMM Do YYYY, h:mm:ss a")
                   .startOf("day")
                   .toDate(),
               },
-              { [Op.lte]: moment(endDate, "DD-MM-YYYY").endOf("day").toDate() },
+              {
+                [Op.lte]: moment(endDate, "MMMM Do YYYY, h:mm:ss a")
+                  .endOf("day")
+                  .toDate(),
+              },
             ],
           };
         } else {
           whereCondition.orderDate = {
-            [Op.gte]: moment(startDate, "DD-MM-YYYY").startOf("day").toDate(),
+            [Op.gte]: moment(startDate, "MMMM Do YYYY, h:mm:ss a")
+              .startOf("day")
+              .toDate(),
           };
         }
       }
@@ -78,21 +92,30 @@ const orders = async (
         ],
       });
 
-      const formattedOrders = allOrders.map((order) => ({
-        ...order.toJSON(),
-        orderDate: formatDate(order.orderDate),
-      }));
-    console.log('formatted orders is ',formattedOrders)
-    res.status(200).json(formattedOrders);
+      const formattedOrders = allOrders.map((order: any) => {
+        console.log("order date is", order.orderDate);
+        const orderDateInAdminTimezone = moment(order.orderDate)
+          .tz(adminTimezone)
+          .format("MMMM Do, YYYY, hh:mm:ss A");
+        console.log("oooo ", orderDateInAdminTimezone);
+        return {
+          ...order.toJSON(),
+          orderDate: orderDateInAdminTimezone,
+        };
+      });
+
+      console.log("Formatted Orders:", formattedOrders);
+      res.status(200).json(formattedOrders);
     } else {
-      res.status(403).json({ message: "You are not going to get all the orders" });
+      res
+        .status(403)
+        .json({ message: "You are not authorized to access all the orders" });
     }
   } catch (error) {
     console.error("Error:", error);
     next(error);
   }
 };
-
 
 // approve order
 const approvedOrder = async (
@@ -125,7 +148,6 @@ const approvedOrder = async (
       ],
     });
 
-
     if (!orderData) {
       return res.status(404).json({ error: "Order not found" });
     }
@@ -152,45 +174,48 @@ const approvedOrder = async (
       productName: product.product.title,
       subtotal: product.quantity * product.price,
     }));
+
     const subject = "Order Approved";
 
     // Dynamically generate the HTML markup
     let html = `
-      <h2>Your order with ID ${orderId} has been approved.</h2>
-      <h3>Order Details:</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Product Name</th>
-            <th>Quantity</th>
-            <th>Price</th>
-            <th>Subtotal</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
+    <div style="font-family: Arial, sans-serif; margin-bottom: 20px;">
+        <h2 style="color: #333; font-size: 24px; margin-bottom: 10px;">Your order with ID ${orderId} has been approved.</h2>
+        <h3 style="color: #333; font-size: 20px; margin-top: 20px;">Order Details:</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 20px; border: 1px solid #ddd;">
+            <thead style="background-color: #f2f2f2;">
+                <tr>
+                    <th style="padding: 15px; border-bottom: 1px solid #ddd; text-align: left;">Product Name</th>
+                    <th style="padding: 15px; border-bottom: 1px solid #ddd; text-align: left;">Quantity</th>
+                    <th style="padding: 15px; border-bottom: 1px solid #ddd; text-align: left;">Price</th>
+                    <th style="padding: 15px; border-bottom: 1px solid #ddd; text-align: left;">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+`;
 
     orderProducts.forEach((product: any) => {
       html += `
-        <tr>
-          <td>${product.productName}</td>
-          <td>${product.quantity}</td>
-          <td>$${product.price}</td>
-          <td>$${product.subtotal}</td>
+        <tr style="border-bottom: 1px solid #ddd;">
+            <td style="padding: 15px; text-align: left;">${product.productName}</td>
+            <td style="padding: 15px; text-align: left;">${product.quantity}</td>
+            <td style="padding: 15px; text-align: left;">$${product.price}</td>
+            <td style="padding: 15px; text-align: left;">$${product.subtotal}</td>
         </tr>
-      `;
+    `;
     });
 
     html += `
-        </tbody>
-      </table>
-      <div>
-        <p><strong>Total Amount:</strong> $${totalAmount}</p>
-        <p><strong>Estimated Delivery Date:</strong> ${moment(
-          deliveryDate
-        ).format("MMMM Do YYYY")}</p>
-      </div>
-    `;
+            </tbody>
+        </table>
+        <div style="margin-top: 20px;">
+            <p style="font-weight: bold; margin: 10px 0; font-size: 18px;">Total Amount: $${totalAmount}</p>
+            <p style="font-weight: bold; margin: 10px 0; font-size: 18px;">Estimated Delivery Date: ${moment(
+              deliveryDate
+            ).format("MMMM Do YYYY")}</p>
+        </div>
+    </div>
+`;
 
     // Send the email with dynamically generated HTML content
     await sendMail(userEmail, subject, "", totalAmount, "", deliveryDate, html);
@@ -245,10 +270,9 @@ const notify = async (
       order.status = "approved";
       await OrderStatus.create({
         orderId: order.id,
-        status: 'approved'
+        status: "approved",
       });
       await order.save();
-     
 
       sendSocket({ data: `orderapproved${order.id}` });
 
@@ -264,48 +288,54 @@ const notify = async (
   }
 };
 
-const updateOrderStatus = async(req: AuthenticatedRequest, res: Response, next: NextFunction)=>{
+const updateOrderStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    if(req.user.isAdmin){
+    if (req.user.isAdmin) {
       const orderId = req.params.orderId;
       const status = req.params.status;
-      if(!orderId || !status){
-        return res.status(400).json({message:"missing orderId or status"})
+      if (!orderId || !status) {
+        return res.status(400).json({ message: "missing orderId or status" });
       }
-      const validStatuses = ['pending','approved','shipped','out for delivery','delivered']
-      if(!validStatuses.includes(status)){
-        return res.status(400).json({message:"invalid status"})
+      const validStatuses = [
+        "pending",
+        "approved",
+        "shipped",
+        "out for delivery",
+        "delivered",
+      ];
+      if (!validStatuses.includes(status)) {
+        return res.status(400).json({ message: "invalid status" });
       }
-      let order = await Order.findByPk(orderId)
-      if(!order){
-        return res.status(400).json({message:"order not found"})
+      let order = await Order.findByPk(orderId);
+      if (!order) {
+        return res.status(400).json({ message: "order not found" });
       }
-      order.status = status
-      let place = null
-      if(['shipped','out for delivery','delivered'].includes(status)){
-         place = req.params.place
-         if(!place){
-          return res.status(400).json({message:"missing place"})
-         }
+      order.status = status;
+      let place = null;
+      if (["shipped", "out for delivery", "delivered"].includes(status)) {
+        place = req.params.place;
+        if (!place) {
+          return res.status(400).json({ message: "missing place" });
+        }
       }
-      await order.save()
+      await order.save();
       await OrderStatus.create({
-        orderId:orderId,
-        status:status,
-        place:place
-      })
-      return res.status(200).json(`order status updated to ${status}`)
-    }else{
-      return res.status(500).json({message:"internal server error"})
+        orderId: orderId,
+        status: status,
+        place: place,
+      });
+      return res.status(200).json(`order status updated to ${status}`);
+    } else {
+      return res.status(500).json({ message: "internal server error" });
     }
   } catch (error) {
-   next(error) 
+    next(error);
   }
-}
-
-
-
-
+};
 
 const returnOrders = async (
   req: AuthenticatedRequest,
@@ -316,64 +346,72 @@ const returnOrders = async (
     if (req.user.isAdmin) {
       let startDate: any, endDate: any;
       if (req.query.startDate) {
-        startDate = moment(req.query.startDate, 'D-M-YYYY');
+        startDate = moment(req.query.startDate, "D-M-YYYY");
       }
       if (req.query.endDate) {
-        endDate = moment(req.query.endDate, 'D-M-YYYY').endOf('day'); 
+        endDate = moment(req.query.endDate, "D-M-YYYY").endOf("day");
       }
-      
-      const [deliveredOrders,returnedOrders]= await Promise.all([
-              Order.sum('totalAmount',{
-                where:{
-                  status: "delivered"
-                }
-              }),
-              Order.sum('totalAmount',{
-                where:{
-                  status:'return',
-                  returnDate:{
-                    [Op.between]:[startDate,endDate]
-                  }
-                }
-              })
-      ])
-      
-    
-      const netSaleTotal = deliveredOrders - returnedOrders
+
+      const [deliveredOrders, returnedOrders] = await Promise.all([
+        Order.sum("totalAmount", {
+          where: {
+            status: "delivered",
+          },
+        }),
+        Order.sum("totalAmount", {
+          where: {
+            status: "return",
+            returnDate: {
+              [Op.between]: [startDate, endDate],
+            },
+          },
+        }),
+      ]);
+
+      const netSaleTotal = deliveredOrders - returnedOrders;
 
       const orders = await Order.findAll({
-        where:{
-          status:'return',
-          returnDate:{
-            [Op.between]:[startDate,endDate]
-          }
+        where: {
+          status: "return",
+          returnDate: {
+            [Op.between]: [startDate, endDate],
+          },
         },
-        order:['returnDate']
-      })
-     
-      let groupedOrders :{[key:string]:any[]}={}
-      orders.forEach(order=>{
-        const formattedReturnDate = moment(order.returnDate).format('D-M-YYYY')
-        if(!groupedOrders[formattedReturnDate]){
-          groupedOrders[formattedReturnDate]=[]
+        order: ["returnDate"],
+      });
+
+      let groupedOrders: { [key: string]: any[] } = {};
+      orders.forEach((order) => {
+        const formattedReturnDate = moment(order.returnDate).format("D-M-YYYY");
+        if (!groupedOrders[formattedReturnDate]) {
+          groupedOrders[formattedReturnDate] = [];
         }
         groupedOrders[formattedReturnDate].push({
-          id:order.id,
-          userid:order.userid,
-          totalAmount:order.totalAmount,
-          status:order.status,
-          returnDate:formattedReturnDate
-        })
-      })
-      return res.status(200).json({orders:Object.entries(groupedOrders),sum:deliveredOrders,netSaleTotal})
+          id: order.id,
+          userid: order.userid,
+          totalAmount: order.totalAmount,
+          status: order.status,
+          returnDate: formattedReturnDate,
+        });
+      });
+      return res.status(200).json({
+        orders: Object.entries(groupedOrders),
+        sum: deliveredOrders,
+        netSaleTotal,
+      });
     } else {
       return res.status(400).json({ message: "return orders not found" });
     }
   } catch (error) {
     next(error);
   }
-}
+};
 
-
-
-export { orders, approvedOrder, changeStatus, notify,updateOrderStatus,returnOrders};
+export {
+  orders,
+  approvedOrder,
+  changeStatus,
+  notify,
+  updateOrderStatus,
+  returnOrders,
+};

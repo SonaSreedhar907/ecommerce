@@ -18,8 +18,11 @@ const verifyToken = (
     if (err) {
       return res.status(401).json({ message: "unauthorized" });
     }
-    console.log("user is ", user);
-    req.user = user;
+    console.log("decoded token is ", user);
+    // Add timezone property to the user object
+    req.user = { ...user };
+    console.log('heloo...',req.user.id)
+    console.log('timezone is..',req.user.timezone)
     next();
   });
 };

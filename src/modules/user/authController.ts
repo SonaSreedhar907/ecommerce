@@ -19,7 +19,7 @@ const signup = async (req: Request, res: Response, next: NextFunction): Promise<
         return res.status(400).json({ message: 'Validation failed', errors: errors.array() });
     }
 
-    const { username, email, password } = req.body;
+    const { username, email, password, timezone } = req.body;
 
     try {
         const existingUser = await User.findOne({
@@ -42,6 +42,7 @@ const signup = async (req: Request, res: Response, next: NextFunction): Promise<
             username,
             email,
             password: hashedPassword,
+            timezone
         });
 
         return res.json({ message: 'Signup successful' });
@@ -74,7 +75,7 @@ const signin = async (req: Request, res: Response, next: NextFunction): Promise<
         }
 
         const token = jwt.sign(
-            { id: validUser.id, isAdmin: validUser.isAdmin },
+            { id: validUser.id, isAdmin: validUser.isAdmin , timezone : validUser.timezone},
             process.env.JWT_SECRET!
         );
 
